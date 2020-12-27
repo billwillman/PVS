@@ -1,0 +1,68 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel PVSBaker
+#pragma kernel PVSOriBaker
+#pragma kernel PVSRtBaker
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+StructuredBuffer<float3> pvsBakerPosArray;
+
+struct Bounds
+{
+	int id;
+	float3 min;
+	float3 max;
+	float3 forward;
+	float3 up;
+};
+
+StructuredBuffer<Bounds> pvsMeshArray;
+
+struct CameraInfo
+{
+	float fieldOfView;
+	float near, far;
+	float aspect;
+	float3 lookAt;
+	float3 position;
+	matrix cullMatrix;
+};
+
+StructuredBuffer<CameraInfo> camera;
+
+[numthreads(8,8,1)]
+void PVSBaker (uint3 id : SV_DispatchThreadID)
+{
+	// TODO: insert actual code here!
+
+	Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+}
+
+[numthreads(8,8,1)]
+void PVSOriBaker(uint3 id : SV_DispatchThreadID)
+{
+	Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+}
+
+Texture2D<float4> PVSRt;
+RWStructuredBuffer<int> PVSRtResult;
+int perValue;
+
+[numthreads(32,32,1)]
+void PVSRtBaker(uint3 id : SV_DispatchThreadID)
+{
+	float4 pixel = PVSRt[id.xy] * 255;
+
+	int r = (int)pixel.y; int g = (int)pixel.z; int b = (int)pixel.w;
+	float pp = 1 / (float)perValue;
+	int idx = (r | (g << 8) | (b << 16)) * pp - 1;
+
+
+	if (idx >= 0 && idx < PVSRtResult.Length)
+		PVSRtResult[idx] = 1;
+	
+	//PVSRtResult[0] = (PVSRt[id.xy] / ((float)perValue) * 255) - 1;
+
+	//Result[id.xy] = float4(id.x & id.y, (id.x & 15) / 15.0, (id.y & 15) / 15.0, 0.0);
+}
